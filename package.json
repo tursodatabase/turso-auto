@@ -38,7 +38,7 @@
   "author": "Turso",
   "license": "MIT",
   "dependencies": {
-    "@tursodatabase/api": "^1.9.0",
+    "@tursodatabase/api": "^2.0.2",
     "@tursodatabase/serverless": "^1.2.0-pre.2"
   },
   "devDependencies": {
