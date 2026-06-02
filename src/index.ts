@@ -1,5 +1,9 @@
 import { createClient } from "@tursodatabase/api";
 import { connect, type Connection } from "@tursodatabase/serverless";
+import { reconcileSchema, type Schema } from "./schema.js";
+
+export { Column, table, integer, text, real, blob } from "./schema.js";
+export type { Schema, Table } from "./schema.js";
 
 // ============================================================================
 // Types
@@ -46,6 +50,14 @@ export interface DatabaseOptions {
    * Opening an existing encrypted database without the matching key fails.
    */
   encryption?: EncryptionOptions;
+  /**
+   * Declarative schema to bring the database up to on open. The schema is the
+   * desired state; the library introspects the database and applies the
+   * additive difference (create missing tables, add missing columns) inside a
+   * single transaction. Reconciliation is additive only — nothing is ever
+   * dropped, renamed, or retyped. See {@link table}.
+   */
+  schema?: Schema;
 }
 
 const DEFAULT_CIPHER: EncryptionCipher = "aes256gcm";
@@ -97,6 +109,15 @@ export class TursoDatabase {
     return new TursoDatabase(name, connect({ url, authToken, remoteEncryptionKey: encryptionKey }));
   }
 
+  /**
+   * The underlying serverless connection. Use this as an escape hatch for
+   * anything the high-level API does not cover — e.g. running a destructive
+   * migration by hand, or plugging in Drizzle.
+   */
+  get connection(): Connection {
+    return this.conn;
+  }
+
   async query(sql: string, params?: unknown[]): Promise<QueryResult> {
     const result = await this.conn.execute(sql, params ?? []);
     return {
@@ -107,6 +128,16 @@ export class TursoDatabase {
 
   async execute(sql: string, params?: unknown[]): Promise<void> {
     await this.conn.execute(sql, params ?? []);
+  }
+
+  /**
+   * Bring this database up to `schema` by applying the additive difference:
+   * create missing tables and add missing columns, atomically. Existing
+   * columns are never altered. Safe to call repeatedly — a database already
+   * matching the schema does no writes.
+   */
+  async ensureSchema(schema: Schema): Promise<void> {
+    await reconcileSchema(this.conn, schema);
   }
 
   async close(): Promise<void> {
@@ -136,7 +167,11 @@ export function openDb(name: string, options?: DatabaseOptions): Promise<TursoDa
 
 async function initDb(name: string, options?: DatabaseOptions): Promise<TursoDatabase> {
   const creds = await ensureDb(name, options?.create !== false, options?.encryption);
-  return TursoDatabase.open(name, creds.url, creds.authToken, options?.encryption?.key);
+  const db = TursoDatabase.open(name, creds.url, creds.authToken, options?.encryption?.key);
+  if (options?.schema) {
+    await db.ensureSchema(options.schema);
+  }
+  return db;
 }
 
 async function ensureDb(
