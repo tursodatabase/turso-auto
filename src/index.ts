@@ -17,6 +17,8 @@ export interface DatabaseOptions {
   bootstrapStrategy?: NonNullable<DatabaseOpts["partialSyncExperimental"]>["bootstrapStrategy"];
   /** Route writes to the remote server instead of writing locally and pushing. Default: true. */
   remoteWrites?: boolean;
+  /** Provision the database if it does not already exist. Default: true. */
+  create?: boolean;
 }
 
 interface Credentials {
@@ -157,12 +159,12 @@ export function openDb(name: string, options?: DatabaseOptions): Promise<TursoDa
 // ============================================================================
 
 async function initDb(name: string, options?: DatabaseOptions): Promise<TursoDatabase> {
-  const creds = await ensureDb(name);
+  const creds = await ensureDb(name, options?.create !== false);
   const localPath = join(tmpdir(), `${name}.db`);
   return TursoDatabase.open(name, localPath, creds.url, creds.authToken, options);
 }
 
-async function ensureDb(name: string): Promise<Credentials> {
+async function ensureDb(name: string, create: boolean): Promise<Credentials> {
   const cached = credentials.get(name);
   if (cached) return cached;
 
@@ -174,6 +176,9 @@ async function ensureDb(name: string): Promise<Credentials> {
     db = await client.databases.get(name);
   } catch (err) {
     if (isNotFound(err)) {
+      if (!create) {
+        throw new Error(`Database "${name}" does not exist (pass { create: true } to provision it)`);
+      }
       db = await client.databases.create(name, { group });
     } else {
       throw err;
