@@ -1,4 +1,4 @@
-import { openDb } from '@tursodatabase/vercel-experimental';
+import { openDb } from '@tursodatabase/auto';
 import { NextResponse } from 'next/server';
 
 export async function GET() {

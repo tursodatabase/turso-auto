@@ -1,6 +1,6 @@
 # Turso + Vercel Guestbook Example
 
-A simple guestbook app demonstrating `@tursodatabase/vercel-experimental` with Next.js on Vercel.
+A simple guestbook app demonstrating `@tursodatabase/auto` with Next.js on Vercel.
 
 ## Setup
 

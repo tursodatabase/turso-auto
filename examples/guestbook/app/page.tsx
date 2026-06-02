@@ -1,4 +1,4 @@
-import { openDb } from '@tursodatabase/vercel-experimental';
+import { openDb } from '@tursodatabase/auto';
 import { revalidatePath } from 'next/cache';
 
 export const dynamic = 'force-dynamic';

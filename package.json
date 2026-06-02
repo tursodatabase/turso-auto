@@ -1,7 +1,7 @@
 {
-  "name": "@tursodatabase/vercel-experimental",
+  "name": "@tursodatabase/auto",
   "version": "0.1.0",
-  "description": "Zero-config SQLite databases for Vercel Functions.",
+  "description": "Zero-config Turso database provisioning — a database for every user, agent, and tenant, on Turso Cloud or BYOC.",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -15,10 +15,12 @@
   },
   "keywords": [
     "turso",
-    "vercel",
-    "serverless",
     "sqlite",
-    "database"
+    "database",
+    "multi-tenant",
+    "provisioning",
+    "serverless",
+    "edge"
   ],
   "author": "Turso",
   "license": "MIT",

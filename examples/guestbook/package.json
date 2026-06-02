@@ -8,7 +8,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "@tursodatabase/vercel-experimental": "../..",
+    "@tursodatabase/auto": "../..",
     "next": "^14.0.0",
     "react": "^18.0.0",
     "react-dom": "^18.0.0"

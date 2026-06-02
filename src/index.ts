@@ -146,6 +146,3 @@ function requireEnv(name: string): string {
 function isNotFound(err: unknown): boolean {
   return err instanceof Error && "status" in err && (err as { status: number }).status === 404;
 }
-
-// Backwards compatibility alias
-export { TursoDatabase as VercelDatabase };

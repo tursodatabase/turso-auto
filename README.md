@@ -1,14 +1,14 @@
 <p align="center">
   <a href="https://turso.tech/">
     <picture>
-      <img src="/.github/assets/cover.png" alt="Turso database for Vercel" />
+      <img src="/.github/assets/cover.png" alt="Turso" />
     </picture>
   </a>
-  <h1 align="center">Turso + Vercel Integration</h1>
+  <h1 align="center">Millions of databases. Zero config.</h1>
 </p>
 
 <p align="center">
-  Zero-config SQLite databases for Vercel Functions.
+  Spin up a Turso database for every user, agent, and tenant &mdash; provisioned on demand, no dashboards. On Turso Cloud or your own infrastructure (BYOC).
 </p>
 
 <p align="center">
@@ -28,9 +28,9 @@
       <img src="https://img.shields.io/discord/933071162680958986?color=0F624B" alt="Discord" />
     </picture>
   </a>
-  <a href="https://www.npmjs.com/package/@tursodatabase/vercel-experimental">
+  <a href="https://www.npmjs.com/package/@tursodatabase/auto">
     <picture>
-      <img src="https://img.shields.io/npm/v/@tursodatabase/vercel-experimental?color=0F624B" alt="npm version" />
+      <img src="https://img.shields.io/npm/v/@tursodatabase/auto?color=0F624B" alt="npm version" />
     </picture>
   </a>
 </p>
@@ -39,23 +39,22 @@
 
 ## Features
 
-- **Zero-config databases** &mdash; Databases are created automatically on first use
-- **Serverless driver** &mdash; Connects to Turso Cloud over HTTP using only `fetch()`, with no local state or native bindings
-- **Durable by default** &mdash; Every read and write goes straight to the remote Turso server
-
-If you've used Cloudflare D1 before for SQLite access on serverless, this package provides similar semantics on Vercel Functions.
+- **Zero-config provisioning** &mdash; Databases are created on first use. No dashboards, no setup steps.
+- **A database for everyone** &mdash; Give every user, agent, or tenant their own database. Lightweight enough to multiply into millions.
+- **Runs anywhere** &mdash; Connects to Turso over HTTP using only `fetch()` &mdash; serverless, edge, or long-running runtimes, with no native bindings.
+- **Cloud or BYOC** &mdash; Works against Turso Cloud or your own infrastructure (Bring Your Own Cloud).
 
 ## Install
 
 ```bash
-npm install @tursodatabase/vercel-experimental
+npm install @tursodatabase/auto
 ```
 
 ## Setup
 
 1. Get your Turso API token:
    ```bash
-   turso auth api-tokens mint my-vercel-token
+   turso auth api-tokens mint my-app-token
    ```
 
 2. Get your organization slug:
@@ -63,27 +62,27 @@ npm install @tursodatabase/vercel-experimental
    turso org list
    ```
 
-3. Create a database group for your project (or use an existing one):
+3. Create a database group for your app (or use an existing one):
    ```bash
    turso group create my-project
    ```
 
-4. Add environment variables to your Vercel project:
+4. Set these environment variables for your app:
    ```
    TURSO_API_TOKEN=your-api-token
    TURSO_ORG=your-org-slug
    TURSO_GROUP=my-project
    ```
 
-All databases are scoped to the configured group. You can have multiple databases per project, but they can only be created in and accessed from the specified group.
+All databases are scoped to the configured group. You can create as many databases as you like within it, and they can only be created in and accessed from that group.
 
 ## Quickstart
 
 ```ts
-import { openDb } from "@tursodatabase/vercel-experimental";
+import { openDb } from "@tursodatabase/auto";
 
-// Get or create a database in the configured group
-const db = await openDb(process.env.TURSO_DATABASE!);
+// One database per tenant — provisioned automatically on first use.
+const db = await openDb(`tenant-${tenantId}`);
 
 // Create tables
 await db.execute(`
@@ -109,13 +108,20 @@ console.log(result.rows);
 
 ### `openDb(name, options?)`
 
-Creates or retrieves a database instance. The database is scoped to the group configured via `TURSO_GROUP`.
+Get a database by name, provisioning it in the configured group if it doesn't already exist. Returns the same instance for repeated calls with the same name.
 
 ```ts
-const db = await openDb(process.env.TURSO_DATABASE!);
+const db = await openDb(`tenant-${tenantId}`);
+
+// Connect to an existing database, without provisioning a new one
+const db = await openDb(`tenant-${tenantId}`, { create: false });
 ```
 
-> **Important:** Store database names passed to `openDb()` as secret environment variables in Vercel. If an attacker can control the database name, they could access any database in the group.
+**Options**
+
+- `create` (default `true`) &mdash; Provision the database if it does not already exist. Pass `false` to require that it already exists (throws otherwise).
+
+> **Important:** Derive database names from a trusted, authenticated identifier &mdash; such as the session's user or tenant ID &mdash; never from raw client input. All access is scoped to the configured group, so a leaked or injected name can at most reach other databases within that same group.
 
 ### `db.query(sql, params?)`
 
@@ -152,19 +158,21 @@ await db.close();
 
 ## Examples
 
-### Next.js Server Component
+The examples below use Next.js, but the API is identical in any JavaScript runtime &mdash; serverless functions, edge workers, or a long-running server.
+
+### Server Component
 
 ```tsx
-import { openDb } from "@tursodatabase/vercel-experimental";
+import { openDb } from "@tursodatabase/auto";
 
-async function getUsers() {
-  const db = await openDb(process.env.TURSO_DATABASE!);
+async function getUsers(tenantId: string) {
+  const db = await openDb(`tenant-${tenantId}`);
   const result = await db.query("SELECT * FROM users");
   return result.rows;
 }
 
 export default async function UsersPage() {
-  const users = await getUsers();
+  const users = await getUsers("acme");
 
   return (
     <ul>
@@ -176,17 +184,17 @@ export default async function UsersPage() {
 }
 ```
 
-### Next.js Server Action
+### Server Action
 
 ```tsx
-import { openDb } from "@tursodatabase/vercel-experimental";
+import { openDb } from "@tursodatabase/auto";
 import { revalidatePath } from "next/cache";
 
-async function addUser(formData: FormData) {
+async function addUser(tenantId: string, formData: FormData) {
   "use server";
 
   const name = formData.get("name") as string;
-  const db = await openDb(process.env.TURSO_DATABASE!);
+  const db = await openDb(`tenant-${tenantId}`);
 
   await db.execute("INSERT INTO users (name) VALUES (?)", [name]);
 
@@ -197,11 +205,11 @@ async function addUser(formData: FormData) {
 ### API Route
 
 ```ts
-import { openDb } from "@tursodatabase/vercel-experimental";
+import { openDb } from "@tursodatabase/auto";
 import { NextResponse } from "next/server";
 
 export async function GET() {
-  const db = await openDb(process.env.TURSO_DATABASE!);
+  const db = await openDb(`tenant-${tenantId}`);
   const result = await db.query("SELECT * FROM users");
 
   return NextResponse.json(result.rows);
@@ -209,7 +217,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const { name } = await request.json();
-  const db = await openDb(process.env.TURSO_DATABASE!);
+  const db = await openDb(`tenant-${tenantId}`);
 
   await db.execute("INSERT INTO users (name) VALUES (?)", [name]);
 
