@@ -35,7 +35,17 @@
   </a>
 </p>
 
-> **⚠️ Warning:** This software is in BETA. It may still contain bugs and unexpected behavior. Use caution with production data and ensure you have backups.
+Name a database and start querying &mdash; it's provisioned the first time you touch it:
+
+```ts
+import { openDb } from "@tursodatabase/auto";
+
+// Provision on first use — no dashboard, no setup
+const db = await openDb("my-db");
+
+// Query the database
+const result = await db.query("SELECT 'hello, world'");
+```
 
 ## Features
 
