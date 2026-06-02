@@ -40,11 +40,14 @@ Name a database and start querying &mdash; it's provisioned the first time you t
 ```ts
 import { openDb } from "@tursodatabase/auto";
 
-// Provision on first use — no dashboard, no setup
-const db = await openDb("my-db");
+// One database per agent. Provisioned automatically.
+const db = await openDb(`agent-${agentId}`);
 
-// Query the database
-const result = await db.query("SELECT 'hello, world'");
+// Give the agent something to remember
+await db.execute(
+  "INSERT INTO memories (content) VALUES (?)",
+  ["User prefers concise answers."]
+);
 ```
 
 ## Features
