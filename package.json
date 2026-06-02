@@ -11,7 +11,20 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
+    "test": "ava",
+    "test:conformance": "ava",
     "prepublishOnly": "npm run build"
+  },
+  "ava": {
+    "files": [
+      "conformance/**/*.test.ts"
+    ],
+    "extensions": [
+      "ts"
+    ],
+    "nodeArguments": [
+      "--import=tsx"
+    ]
   },
   "keywords": [
     "turso",
@@ -30,6 +43,8 @@
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
+    "ava": "^8.0.1",
+    "tsx": "^4.22.4",
     "typescript": "^5.0.0"
   },
   "engines": {
