@@ -59,9 +59,8 @@ The database will be auto-created on first request.
 ## How it works
 
 - `openDb(process.env.TURSO_DATABASE!)` auto-creates the database on Turso Cloud if it doesn't exist
-- Database is stored locally at `/tmp/<database-name>.db` using partial sync
-- Reads fetch only the pages needed from Turso Cloud
-- Writes are pushed to Turso Cloud with `db.push()`
+- Connects to Turso Cloud over HTTP using only `fetch()` — no local files or native bindings
+- Reads and writes go directly to the remote database and are durable immediately
 
 ## Security
 

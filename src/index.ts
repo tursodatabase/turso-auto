@@ -1,8 +1,5 @@
-import { join } from "node:path";
-import { tmpdir } from "node:os";
 import { createClient } from "@tursodatabase/api";
-import { connect, type Database, type DatabaseOpts } from "@tursodatabase/sync";
-import { waitUntil } from "@vercel/functions";
+import { connect, type Connection } from "@tursodatabase/serverless";
 
 // ============================================================================
 // Types
@@ -14,9 +11,6 @@ export interface QueryResult {
 }
 
 export interface DatabaseOptions {
-  bootstrapStrategy?: NonNullable<DatabaseOpts["partialSyncExperimental"]>["bootstrapStrategy"];
-  /** Route writes to the remote server instead of writing locally and pushing. Default: true. */
-  remoteWrites?: boolean;
   /** Provision the database if it does not already exist. Default: true. */
   create?: boolean;
 }
@@ -32,8 +26,6 @@ interface Credentials {
 
 const instances = new Map<string, Promise<TursoDatabase>>();
 const credentials = new Map<string, Credentials>();
-const connections = new Set<TursoDatabase>();
-const closeChecks = new Map<TursoDatabase, () => void>();
 
 let apiClient: ReturnType<typeof createClient> | null = null;
 let apiClientOrg: string | null = null;
@@ -45,79 +37,32 @@ let cachedGroupToken: { group: string; jwt: string } | null = null;
 
 export class TursoDatabase {
   readonly name: string;
-  private db: Database;
-  private remoteWrites: boolean;
-  private dirty = false;
+  private conn: Connection;
 
-  private constructor(name: string, db: Database, remoteWrites: boolean) {
+  private constructor(name: string, conn: Connection) {
     this.name = name;
-    this.db = db;
-    this.remoteWrites = remoteWrites;
+    this.conn = conn;
   }
 
-  static async open(
-    name: string,
-    localPath: string,
-    url: string,
-    authToken: string,
-    options?: DatabaseOptions
-  ): Promise<TursoDatabase> {
-    const remoteWrites = options?.remoteWrites !== false;
-    const opts: DatabaseOpts = { path: localPath, url, authToken, remoteWritesExperimental: remoteWrites };
-
-    opts.partialSyncExperimental = {
-      bootstrapStrategy: options?.bootstrapStrategy ?? { kind: "prefix", length: 128 * 1024 },
-      segmentSize: 128 * 1024,
-    };
-
-    const db = await connect(opts);
-    await db.pull();
-    return new TursoDatabase(name, db, remoteWrites);
+  static open(name: string, url: string, authToken: string): TursoDatabase {
+    return new TursoDatabase(name, connect({ url, authToken }));
   }
 
   async query(sql: string, params?: unknown[]): Promise<QueryResult> {
-    const stmt = this.db.prepare(sql);
-    try {
-      const columns = stmt.columns().map((c: { name: string }) => c.name);
-      const rows = await stmt.all(...(params ?? []));
-      return { columns, rows: rows.map((row: Record<string, unknown>) => Object.values(row)) };
-    } finally {
-      stmt.close();
-    }
+    const result = await this.conn.execute(sql, params ?? []);
+    return {
+      columns: result.columns,
+      rows: result.rows.map((row: unknown[]) => [...row]),
+    };
   }
 
   async execute(sql: string, params?: unknown[]): Promise<void> {
-    const stmt = this.db.prepare(sql);
-    try {
-      await stmt.run(...(params ?? []));
-      if (!this.remoteWrites) {
-        this.dirty = true;
-      }
-    } finally {
-      stmt.close();
-    }
-  }
-
-  async push(): Promise<void> {
-    if (this.remoteWrites || !this.dirty) return;
-    await this.db.push();
-    this.dirty = false;
-  }
-
-  async pull(): Promise<void> {
-    await this.db.pull();
+    await this.conn.execute(sql, params ?? []);
   }
 
   async close(): Promise<void> {
-    connections.delete(this);
-    closeChecks.get(this)?.();
-    closeChecks.delete(this);
-    try {
-      await this.push();
-    } finally {
-      instances.delete(this.name);
-      await this.db.close();
-    }
+    instances.delete(this.name);
+    await this.conn.close();
   }
 }
 
@@ -133,24 +78,6 @@ export function openDb(name: string, options?: DatabaseOptions): Promise<TursoDa
   instances.set(name, promise);
   promise.catch(() => instances.delete(name));
 
-  promise.then((db) => {
-    connections.add(db);
-    waitUntil(
-      new Promise<void>((resolve) => {
-        closeChecks.set(db, resolve);
-        setTimeout(resolve, 5000);
-      }).then(() => {
-        closeChecks.delete(db);
-        if (connections.has(db)) {
-          console.warn(
-            `Database "${db.name}" was not closed. ` +
-              "Call db.close() to ensure writes are pushed and errors are surfaced."
-          );
-        }
-      })
-    );
-  });
-
   return promise;
 }
 
@@ -160,8 +87,7 @@ export function openDb(name: string, options?: DatabaseOptions): Promise<TursoDa
 
 async function initDb(name: string, options?: DatabaseOptions): Promise<TursoDatabase> {
   const creds = await ensureDb(name, options?.create !== false);
-  const localPath = join(tmpdir(), `${name}.db`);
-  return TursoDatabase.open(name, localPath, creds.url, creds.authToken, options);
+  return TursoDatabase.open(name, creds.url, creds.authToken);
 }
 
 async function ensureDb(name: string, create: boolean): Promise<Credentials> {

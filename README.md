@@ -40,9 +40,8 @@
 ## Features
 
 - **Zero-config databases** &mdash; Databases are created automatically on first use
-- **Local SQLite** &mdash; Fast reads from a local database copy in the serverless function
-- **Remote writes** &mdash; Writes go directly to the remote Turso server, so they're durable immediately
-- **Partial replication** &mdash; Replicate just the data you need locally to serverless function
+- **Serverless driver** &mdash; Connects to Turso Cloud over HTTP using only `fetch()`, with no local state or native bindings
+- **Durable by default** &mdash; Every read and write goes straight to the remote Turso server
 
 If you've used Cloudflare D1 before for SQLite access on serverless, this package provides similar semantics on Vercel Functions.
 
@@ -143,22 +142,12 @@ await db.execute(
 );
 ```
 
-### `db.push()`
+### `db.close()`
 
-Manually push local changes to the remote Turso database. Only needed when `remoteWrites` is disabled.
-
-```ts
-const db = await openDb(process.env.TURSO_DATABASE!, { remoteWrites: false });
-await db.execute("INSERT INTO users (name) VALUES (?)", ["Charlie"]);
-await db.push();
-```
-
-### `db.pull()`
-
-Pull latest changes from the remote Turso database.
+Close the connection to the remote Turso database, releasing the server-side stream.
 
 ```ts
-await db.pull(); // Get latest data from Turso
+await db.close();
 ```
 
 ## Examples
