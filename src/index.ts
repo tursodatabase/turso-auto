@@ -123,7 +123,7 @@ export class TursoDatabase {
 // Public API
 // ============================================================================
 
-export function createDb(name: string, options?: DatabaseOptions): Promise<TursoDatabase> {
+export function openDb(name: string, options?: DatabaseOptions): Promise<TursoDatabase> {
   const existing = instances.get(name);
   if (existing) return existing;
 

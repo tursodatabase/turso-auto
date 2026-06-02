@@ -1,4 +1,4 @@
-import { createDb } from '@tursodatabase/vercel-experimental';
+import { openDb } from '@tursodatabase/vercel-experimental';
 import { revalidatePath } from 'next/cache';
 
 export const dynamic = 'force-dynamic';
@@ -11,7 +11,7 @@ interface GuestbookEntry {
 }
 
 async function getEntries(): Promise<GuestbookEntry[]> {
-  const db = await createDb(process.env.TURSO_DATABASE!);
+  const db = await openDb(process.env.TURSO_DATABASE!);
   try {
     // Create table if it doesn't exist
     await db.execute(`
@@ -44,7 +44,7 @@ async function addEntry(formData: FormData) {
 
   if (!name || !message) return;
 
-  const db = await createDb(process.env.TURSO_DATABASE!);
+  const db = await openDb(process.env.TURSO_DATABASE!);
   try {
     await db.execute(
       'INSERT INTO entries (name, message) VALUES (?, ?)',

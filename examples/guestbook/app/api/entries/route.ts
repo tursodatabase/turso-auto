@@ -1,8 +1,8 @@
-import { createDb } from '@tursodatabase/vercel-experimental';
+import { openDb } from '@tursodatabase/vercel-experimental';
 import { NextResponse } from 'next/server';
 
 export async function GET() {
-  const db = await createDb(process.env.TURSO_DATABASE!);
+  const db = await openDb(process.env.TURSO_DATABASE!);
   try {
     const result = await db.query('SELECT id, name, message, created_at FROM entries ORDER BY id DESC LIMIT 50');
 
@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Name and message are required' }, { status: 400 });
   }
 
-  const db = await createDb(process.env.TURSO_DATABASE!);
+  const db = await openDb(process.env.TURSO_DATABASE!);
   try {
     await db.execute(
       'INSERT INTO entries (name, message) VALUES (?, ?)',

@@ -81,10 +81,10 @@ All databases are scoped to the configured group. You can have multiple database
 ## Quickstart
 
 ```ts
-import { createDb } from "@tursodatabase/vercel-experimental";
+import { openDb } from "@tursodatabase/vercel-experimental";
 
 // Get or create a database in the configured group
-const db = await createDb(process.env.TURSO_DATABASE!);
+const db = await openDb(process.env.TURSO_DATABASE!);
 
 // Create tables
 await db.execute(`
@@ -108,15 +108,15 @@ console.log(result.rows);
 
 ## API Reference
 
-### `createDb(name, options?)`
+### `openDb(name, options?)`
 
 Creates or retrieves a database instance. The database is scoped to the group configured via `TURSO_GROUP`.
 
 ```ts
-const db = await createDb(process.env.TURSO_DATABASE!);
+const db = await openDb(process.env.TURSO_DATABASE!);
 ```
 
-> **Important:** Store database names passed to `createDb()` as secret environment variables in Vercel. If an attacker can control the database name, they could access any database in the group.
+> **Important:** Store database names passed to `openDb()` as secret environment variables in Vercel. If an attacker can control the database name, they could access any database in the group.
 
 ### `db.query(sql, params?)`
 
@@ -148,7 +148,7 @@ await db.execute(
 Manually push local changes to the remote Turso database. Only needed when `remoteWrites` is disabled.
 
 ```ts
-const db = await createDb(process.env.TURSO_DATABASE!, { remoteWrites: false });
+const db = await openDb(process.env.TURSO_DATABASE!, { remoteWrites: false });
 await db.execute("INSERT INTO users (name) VALUES (?)", ["Charlie"]);
 await db.push();
 ```
@@ -166,10 +166,10 @@ await db.pull(); // Get latest data from Turso
 ### Next.js Server Component
 
 ```tsx
-import { createDb } from "@tursodatabase/vercel-experimental";
+import { openDb } from "@tursodatabase/vercel-experimental";
 
 async function getUsers() {
-  const db = await createDb(process.env.TURSO_DATABASE!);
+  const db = await openDb(process.env.TURSO_DATABASE!);
   const result = await db.query("SELECT * FROM users");
   return result.rows;
 }
@@ -190,14 +190,14 @@ export default async function UsersPage() {
 ### Next.js Server Action
 
 ```tsx
-import { createDb } from "@tursodatabase/vercel-experimental";
+import { openDb } from "@tursodatabase/vercel-experimental";
 import { revalidatePath } from "next/cache";
 
 async function addUser(formData: FormData) {
   "use server";
 
   const name = formData.get("name") as string;
-  const db = await createDb(process.env.TURSO_DATABASE!);
+  const db = await openDb(process.env.TURSO_DATABASE!);
 
   await db.execute("INSERT INTO users (name) VALUES (?)", [name]);
 
@@ -208,11 +208,11 @@ async function addUser(formData: FormData) {
 ### API Route
 
 ```ts
-import { createDb } from "@tursodatabase/vercel-experimental";
+import { openDb } from "@tursodatabase/vercel-experimental";
 import { NextResponse } from "next/server";
 
 export async function GET() {
-  const db = await createDb(process.env.TURSO_DATABASE!);
+  const db = await openDb(process.env.TURSO_DATABASE!);
   const result = await db.query("SELECT * FROM users");
 
   return NextResponse.json(result.rows);
@@ -220,7 +220,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const { name } = await request.json();
-  const db = await createDb(process.env.TURSO_DATABASE!);
+  const db = await openDb(process.env.TURSO_DATABASE!);
 
   await db.execute("INSERT INTO users (name) VALUES (?)", [name]);
 
